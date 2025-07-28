@@ -4,6 +4,7 @@ on:
 name: sync-labels
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
@@ -17,6 +18,6 @@ jobs:
         with:
           config-file: .github/labels.yml
           # If you want to delete any additional labels not mentioned in config file, set this to true
-          delete-other-labels: false
+          delete-other-labels: true
           dry-run: false
           token: ${{ secrets.GITHUB_TOKEN }}
