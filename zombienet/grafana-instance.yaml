@@ -1,0 +1,15 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    dashboards: grafana
+spec:
+  config:
+    log:
+      mode: "console"
+      level: "info"
+    security:
+      admin_user: chainsafe
+      admin_password: polkadot
