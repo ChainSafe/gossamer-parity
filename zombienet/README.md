@@ -40,14 +40,28 @@ graph TD
 
 So far this setup has only been tested with OrbStack running on an Apple Silicon MacBook.
 
-### Required
+### Docker & Kubernetes
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/), [OrbStack](https://orbstack.dev/) or another method of running a Kubernetes cluster on your machine ([minikube](https://minikube.sigs.k8s.io/docs/start/), [kind](https://kind.sigs.k8s.io/), [k3s](https://k3s.io/), etc.)
-- [zombienet](https://github.com/paritytech/zombienet)
+First thing you need is [Docker Desktop](https://www.docker.com/products/docker-desktop/), [OrbStack](https://orbstack.dev/) or another method of running a
+Kubernetes cluster on your machine ([minikube](https://minikube.sigs.k8s.io/docs/start/), [kind](https://kind.sigs.k8s.io/), [k3s](https://k3s.io/), etc.)
+OrbStack is recommended.
 
-### Recommended
+### Forked Version of [Zombienet](https://github.com/paritytech/zombienet)
 
-- [k9s](https://k9scli.io/) (Terminal UI for Kubernetes)
+#### TL;DR (see below for details)
+
+```
+$ sudo curl -L -o /usr/local/bin/zombienet https://github.com/haikoschol/zombienet/releases/download/v1.3.135/zombienet-macos-arm64
+Password:
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100  227M  100  227M    0     0  6004k      0  0:00:38  0:00:38 --:--:-- 5310k
+
+$ sudo chmod +x /usr/local/bin/zombienet
+```
+
+#### Background Info
 
 In order for Prometheus to scrape metrics from zombienet pods, a `PodMonitor` Kubernetes resource needs to be created in the cluster.
 Zombienet creates a `PodMonitor` resource when running `zombienet spawn`, but unfortunately it contains an invalid regex, causing it
@@ -64,12 +78,20 @@ $ kubectl get pods
 No resources found in default namespace.
 ```
 
-Once that is the case, you can start `k9s` to get a nice view of the resources in the cluster. Typing `:` followed by the resource
-you are interested in plus return shows a list of e.g. `namespaces`, `pods`, `services`, etc.
+### k9s
+
+[k9s](https://k9scli.io/) is a nice terminal UI for Kubernetes. It's not necessary but gives a useful overview over what is happening in the cluster.
+If you use homebrew, it can be installed with `brew install k9s`.
+
+Once it is installed, you can start `k9s` to get a nice view of the resources in the cluster. Typing `:` followed by the resource you are interested
+in plus return shows a list of e.g. `namespaces`, `pods`, `services`, etc.
+
+### Installing Kubernetes Resources
 
 Now apply the manifests in the following order, using the command `kubectl apply -f <manifest>.yaml`:
 
 1. `monitoring-service-account.yaml`
+1. `prometheus-stripped-down-crds.yaml`
 1. `prometheus-operator.yaml` (observe pods in the `monitoring` namespace to make sure they start correctly, either in `k9s` or with `kubectl -n monitoring get pods`)
 1. `prometheus-instance.yaml` (this should create a pod called `prometheus-prometheus-0` plus a few more resources)
 1. `loki-stack.yaml` (pods with prefixes `loki-` and `alloy-`, a deployment called `loki` and a daemonset called `alloy`, plus a few configmaps)
