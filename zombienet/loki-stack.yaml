@@ -1,0 +1,186 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      serviceAccountName: monitoring-service-account
+      containers:
+      - name: loki
+        image: grafana/loki:3.5
+        args:
+          - -config.file=/etc/loki/loki-config.yaml
+        volumeMounts:
+          - name: config
+            mountPath: /etc/loki
+      volumes:
+        - name: config
+          configMap:
+            name: loki-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  selector:
+    app: loki
+  ports:
+    - protocol: TCP
+      port: 3100
+      targetPort: 3100
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: monitoring
+data:
+  loki-config.yaml: |
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+      log_level: warn
+    ingester:
+      lifecycler:
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+    schema_config:
+      configs:
+        - from: "2025-08-01" # A date in the past, marking the start of this schema configuration
+          store: tsdb
+          object_store: filesystem
+          schema: v13 # Recommended schema version for TSDB
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      tsdb_shipper:
+        active_index_directory: /tmp/loki/index # Directory for the active TSDB index
+        cache_location: /tmp/loki/cache # Directory for the TSDB cache
+    common:
+      path_prefix: /tmp/loki # Base directory for Loki data (chunks and index)
+    limits_config:
+          volume_enabled: true
+          reject_old_samples: true
+          reject_old_samples_max_age: 168h
+          allow_structured_metadata: true
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  namespace: monitoring
+  labels:
+    app: alloy
+spec:
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      serviceAccountName: monitoring-service-account
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.10.1
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: varliballoydata
+              mountPath: /var/lib/alloy/data
+      volumes:
+        - name: config
+          configMap:
+            name: alloy
+        - name: varliballoydata
+          hostPath:
+            path: /var/lib/alloy/data
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy
+  namespace: monitoring
+data:
+  config.alloy: |
+    logging {
+      level = "warn"
+    }
+
+    discovery.kubernetes "kubernetes_pods_zombienet" {
+    	role = "pod"
+    }
+
+    discovery.relabel "kubernetes_pods_zombienet" {
+    	targets = discovery.kubernetes.kubernetes_pods_zombienet.targets
+
+    	rule {
+    		source_labels = ["__meta_kubernetes_namespace"]
+    		regex         = "zombie-.*"
+    		action        = "keep"
+    	}
+
+    	rule {
+    		source_labels = ["__meta_kubernetes_pod_name"]
+    		target_label  = "pod"
+    	}
+
+    	rule {
+    		source_labels = ["__meta_kubernetes_namespace"]
+    		target_label  = "namespace"
+    	}
+
+    	rule {
+    		source_labels = ["__meta_kubernetes_pod_container_name"]
+    		target_label  = "container"
+    	}
+
+    	rule {
+    		source_labels = ["__meta_kubernetes_pod_label_zombie_role"]
+    		target_label  = "zombie_role"
+    	}
+    }
+
+    loki.process "kubernetes_pods_zombienet" {
+    	forward_to = [loki.write.default.receiver]
+
+      stage.regex {
+        expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}) (?P<message>.*)"
+      }
+
+      stage.timestamp {
+        format = "2006-01-02 15:04:05"
+        source = "timestamp"
+      }
+
+      stage.output {
+        source = "message"
+      }
+    }
+
+    loki.source.kubernetes "kubernetes_pods_zombienet" {
+      targets    = discovery.relabel.kubernetes_pods_zombienet.output
+      forward_to = [loki.process.kubernetes_pods_zombienet.receiver]
+    }
+
+    loki.write "default" {
+    	endpoint {
+    		url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+    	}
+    	external_labels = {}
+    }

@@ -1,0 +1,58 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: prometheus-datasource
+  namespace: monitoring
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  allowCrossNamespaceImport: true
+  datasource:
+    access: proxy
+    database: prometheus
+    jsonData:
+      timeInterval: 5s
+      tlsSkipVerify: true
+    name: Prometheus
+    type: prometheus
+    isDefault: true
+    url: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: loki-datasource
+  namespace: monitoring
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  allowCrossNamespaceImport: true
+  datasource:
+    name: Loki
+    type: loki
+    access: proxy
+    url: "http://loki.monitoring.svc.cluster.local:3100"
+    jsonData:
+      maxLines: 1000
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: substrate-service-tasks
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  url: "https://raw.githubusercontent.com/paritytech/polkadot-sdk/5bb3afcd733a18744a09c1df840c3813623fb0ab/substrate/scripts/ci/monitoring/grafana-dashboards/substrate-service-tasks.json"
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: substrate-networking
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  url: "https://raw.githubusercontent.com/paritytech/polkadot-sdk/5bb3afcd733a18744a09c1df840c3813623fb0ab/substrate/scripts/ci/monitoring/grafana-dashboards/substrate-networking.json"
