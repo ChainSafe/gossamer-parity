@@ -17,35 +17,35 @@ Types that implement protocol logic have a method called `read_write()` or `subs
 
 Some of those types are:
 
-### [`libp2p::connection::webrtc_framing::WebRtcFraming`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/webrtc_framing.rs#L30)
+### [`webrtc_framing::WebRtcFraming`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/webrtc_framing.rs#L30)
 
 Removes the protobuf envelope from [incoming messages](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/webrtc_framing.rs#L151)
 and adds it to [outgoing messages](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/webrtc_framing.rs#L250).
 
-### [`libp2p::collection::Network`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/collection.rs#L314)
+### [`collection::Network`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/collection.rs#L314)
 
 `Network`, aka the coordinator, keeps track of all connections and emits events related to them such as `InboundNegotiated`. The API user needs to poll for these events by calling
 `Network::next_event()`.
 
-### [`libp2p::collection::multi_stream::MultiStreamConnectionTask`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/collection/multi_stream.rs#L36)
+### [`collection::multi_stream::MultiStreamConnectionTask`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/collection/multi_stream.rs#L36)
 
 This type keeps track of all substreams of a single connection. An instance of this type is returned by `Network::insert_multi_stream()`. When either side of the connection opens a new
 substream, the API user needs to call `MultiStreamConnectionTask::add_substream()`. Whenever data needs to be sent or received on a substream, the API user needs to call
 `MultiStreamConnectionTask::substream_read_write()`. In addition, the API user needs to pull messages from the connection to the coordinator and vice versa.
 
-### [`libp2p::connection::established::multi_stream::MultiStream`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/established/multi_stream.rs#L37)
+### [`connection::established::multi_stream::MultiStream`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/established/multi_stream.rs#L37)
 
-State machine of a fully-established connection that, um... also keeps track of its substreams. 🤷 After the handshake, a `MultiStreamConnectionTask` contains one of these and forwards calls
-like `add_substream()`, `substream_read_write()` and `desired_outbound_substreams()` to it.
+State machine of a fully-established connection that, um... also keeps track of its substreams. 🤷 After the handshake, a `MultiStreamConnectionTask` contains an instance of this type and forwards
+calls like `add_substream()`, `substream_read_write()` and `desired_outbound_substreams()` to it.
 
-### [`libp2p::connection::established::substream::Substream`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/established/substream.rs#L180)
+### [`connection::established::substream::Substream`](https://github.com/ChainSafe/smoldot/blob/37482d9a635a17f9e6a77aa245b4684b2f72e750/lib/src/libp2p/connection/established/substream.rs#L180)
 
 Represents a single substream inside of a connection. This type implements multistream-select negotiation, notification, request/response and ping protocols. As far as I know, there is no
 mechanism to use custom `Substream` types that implement other protocols (such as the performance behavior) in a `MultiStream`/`MultiStreamConnectionTask`.
 
 ## Development Environment Overview
 
-The smoldot "development environment" is a paired-down version of smoldot running in the browser for the purpose of testing various parts of the WebRTC support in isolation. It currently lives
+The smoldot "development environment" is a pared-down version of smoldot running in the browser for the purpose of testing various parts of the WebRTC support in isolation. It currently lives
 in the directory `lib/examples/webrtc-wasm` on [the branch `haiko-libp2p-webrtc`](https://github.com/ChainSafe/smoldot/tree/haiko-libp2p-webrtc). It consists of the JavaScript side in
 [`index.html`](https://github.com/ChainSafe/smoldot/blob/haiko-libp2p-webrtc/lib/examples/webrtc-wasm/index.html) and the Rust/wasm side in
 [`lib.rs`](https://github.com/ChainSafe/smoldot/blob/haiko-libp2p-webrtc/lib/examples/webrtc-wasm/src/lib.rs).
@@ -142,8 +142,9 @@ Run smoldot:
 
 #### Semi-automated
 
-The tedious task of copying the peer address, pasting it into the text field and clicking the button can be automated with [`smoldot-browser-poke`](https://github.com/haikoschol/smoldot-browser-poke). This tool reads the peer address from a file whenever it changes and controls Chrome to start the connection. The `webrtc-poc` server needs to be modified to
-write this file. This can be done by adding the following line just below where the peer address is printed in line 62 of `server/src/main.rs`:
+The tedious task of copying the peer address, pasting it into the text field and clicking the button can be automated with [`smoldot-browser-poke`](https://github.com/haikoschol/smoldot-browser-poke).
+This tool reads the peer address from a file whenever it changes and controls Chrome to start the connection. The `webrtc-poc` server needs to be modified to write this file.
+This can be done by adding the following line just below where the peer address is printed in line 62 of `server/src/main.rs`:
 
 ```Rust
     tokio::fs::write("peer_address.txt", addr.to_string()).await?;
@@ -305,7 +306,7 @@ if self.framing.inner_stream_expected_incoming_bytes.is_none()
 With this one I'm much more inclined to call it a bug because without the `else`, `self.outer_read_write.wake_up_after` is overwritten right after calling
 `self.outer_read_write.wake_up_asap()`, making that call pointless.
 
-A third and more nebulous issue is that the handling of flags in the protobuf envelope doesn't seem to be handled properly. When the handshake is done, 
+A third and more nebulous issue is that the handling of flags in the protobuf envelope doesn't seem to work properly. When the handshake is done, 
 `MultiStreamConnectionTask::substream_read_write()`
 [returns a `SubstreamFate::Reset`](https://github.com/ChainSafe/smoldot/blob/0ab3d2d0ca01d633cd4f650c2782d1fcd0ce2b4b/lib/src/libp2p/collection/multi_stream.rs#L910). However, after the
 remote has sent the last message in the handshake flow, it sends another three bytes. Those are the protobuf envelope with the `FIN` flag set and without a message. The receiver is
