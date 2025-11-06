@@ -1,0 +1,22 @@
+[settings]
+timeout = 1000
+#polkadot_introspector = true
+
+[relaychain]
+default_image = "paritypr/polkadot-debug:master"
+chain = "rococo-local"
+
+  [[relaychain.nodes]]
+  name = "alice"
+
+  [[relaychain.nodes]]
+  name = "bob"
+
+[[parachains]]
+id = 100
+
+  [parachains.collator]
+  name = "collator01"
+  image = "paritypr/colander:master"
+  command = "adder-collator"
+
